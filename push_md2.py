@@ -54,6 +54,8 @@ class push_md():
 
     def getTag(self,file):
         line = file.readline()
+        if line == "---\n":
+            return (None,line+file.read())
         tags = line.split("#")
         content = line+"\n"
         if "#" not in line:
@@ -66,13 +68,16 @@ class push_md():
     def getTime(self,file):
         file_path = os.path.join(self.output_folder1, file)
         print(file_path)
-        with open(file_path, "r", encoding="utf-8") as f:
-            content = f.read()
-            pattern = r"date: (\d{4}-\d{2}-\d{2})"
-            matches = re.findall(pattern, content)
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read()
+                pattern = r"date: (\d{4}-\d{2}-\d{2})"
+                matches = re.findall(pattern, content)
 
-            print(matches[0])
-            return matches[0]
+                print(matches[0])
+                return matches[0]
+        except:
+            return self.get_now_time() 
             
     def check_N_O(self,file):
         files = MYcurses2.getAll_file(self.output_folder1)
@@ -87,14 +92,29 @@ class push_md():
 
     def addtitle(self,content,title,time,tags,categories):
         print("標記資訊...")
-        tags ="\n   - ".join(tags) 
+
         categories.insert(0,"")
         categories ="\n   - ".join(categories) 
+        if tags is None:
+            separator_index = content[4:].find('---')+4
+            tags = "no"
+            metadata = ""
+            YAML = content[:separator_index]
+            if "title" not in YAML:
+                metadata += f"\ntitle: {title}"
+            if "date" not in YAML:
+                metadata += f"\ndate: {time}"
+            if "categories" not in YAML:
+                metadata += f"\ncategories:{categories}"
+            metadata += "\n"
+        else:
+            separator_index = 0
+            tags ="\n   - ".join(tags) 
+            metadata = f"---\ntitle: {title}\ndate: {time}\ntags:{tags}\ncategories:{categories}\n---\n"
         
-        print(f"標題:{title},\n時間:{time},\n標籤:\n{tags},\n分類:\n{categories}")
-        metadata = f"---\ntitle: {title}\ndate: {time}\ntags:{tags}\ncategories:{categories}\n---\n"
-        content_with_metadata = metadata + content
-
+        # print(f"標題:{title},\n時間:{time},\n標籤:\n{tags},\n分類:\n{categories}")
+        print(metadata)
+        content_with_metadata = content[:separator_index] + metadata + content[separator_index:]
         print("successfully!")
         return content_with_metadata
     
