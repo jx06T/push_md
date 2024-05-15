@@ -11,8 +11,7 @@ class push_md():
         self.input_folders0 = input_folder_paths0
         self.input_folders = input_folder_paths
         self.output_folder0 = output_folder_path
-        self.output_folder1 = output_folder_path+"source\\_posts"
-        self.output_folder2 = output_folder_path+"source\\img"
+        self.output_folder1 = output_folder_path+"\src\content\posts"
 
     def save_content_to_file(self,content, file_path):
         try:
@@ -43,9 +42,10 @@ class push_md():
                         Mtime = self.check_N_O(file.replace(" ","_"))
                         tags,content = self.getTag(f)
                         categories = file.split("\\")[:-1]
-
+                        if len(categories) == 0:
+                            categories.append("")
                         content = self.addtitle(content,title,Mtime,tags,categories)              
-                        content = self.image_urls(content,file.replace(" ","_")[:-3])
+                        content = self.image_urls(content,file.replace(" ","_")[:-3],categories)
                         content = self.quote_urls(content)
 
                         # print(content)
@@ -59,9 +59,11 @@ class push_md():
         tags = line.split("#")
         content = line+"\n"
         if "#" not in line:
-            tags = ["","no"]
+            tags = []
         else:
             content = ""
+            tags[-1] = tags[-1][0:-1]
+            tags = tags[1:]
         content += file.read()
         return (tags,content)
 
@@ -71,7 +73,7 @@ class push_md():
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
-                pattern = r"date: (\d{4}-\d{2}-\d{2})"
+                pattern = r"published: (\d{4}-\d{2}-\d{2})"
                 matches = re.findall(pattern, content)
 
                 print(matches[0])
@@ -82,7 +84,7 @@ class push_md():
     def check_N_O(self,file):
         files = MYcurses2.getAll_file(self.output_folder1)
         filtered_arr = [i for i in files if i == file]
-        print(files,file,filtered_arr)
+        # print(files,file,filtered_arr)
         if len(filtered_arr)>0:
             Mtime = self.getTime(filtered_arr[0])
         else:
@@ -92,43 +94,55 @@ class push_md():
 
     def addtitle(self,content,title,time,tags,categories):
         print("標記資訊...")
-
-        categories.insert(0,"")
-        categories ="\n   - ".join(categories) 
+        category = categories[-1]
         if tags is None:
             separator_index = content[4:].find('---')+4
-            tags = "no"
+            tags = ""
             metadata = ""
             YAML = content[:separator_index]
             if "title" not in YAML:
                 metadata += f"\ntitle: {title}"
-            if "date" not in YAML:
-                metadata += f"\ndate: {time}"
-            if "categories" not in YAML:
-                metadata += f"\ncategories:{categories}"
+            if "published" not in YAML:
+                metadata += f"\npublished: {time}"
+            if "category" not in YAML:
+                metadata += f"\ncategory: {category}"
             metadata += "\n"
         else:
             separator_index = 0
-            tags ="\n   - ".join(tags) 
-            metadata = f"---\ntitle: {title}\ndate: {time}\ntags:{tags}\ncategories:{categories}\n---\n"
+            tags ="[" + ",".join([f"'{tag.strip()}'" for tag in tags]) + "]"
+            metadata = f"---\ntitle: {title}\npublished: {time}\ntags: {tags}\ncategory: {category}\n---\n"
         
-        # print(f"標題:{title},\n時間:{time},\n標籤:\n{tags},\n分類:\n{categories}")
+        # print(f"標題:{title},\n時間:{time},\n標籤:\n{tags},\n分類:\n{category}")
         print(metadata)
         content_with_metadata = content[:separator_index] + metadata + content[separator_index:]
         print("successfully!")
         return content_with_metadata
+         
+    def get_ok_name(self,name):
+        special_chars = "()[]#!@$%^&*|{}?<>"
+        pattern = "[" + re.escape("".join(special_chars)) + "]"
+        name = re.sub(pattern, "", name)
+        return name
+
     
-    def image_urls(self,content,main_name):
+    def image_urls(self,content,main_name,file_path):
         print("檢查本地資源引用...")
         pattern = r"!\[(.*)\]\((.*(?:C:|D:).*\\(.+\..+))\)"
         matches = re.findall(pattern, content)
-        eplaced_text = re.sub(pattern, r"![\1](../img/"+re.escape(main_name)+r"__\3)", content)
+        # eplaced_text = re.sub(pattern, r"![\1]("+self.get_ok_name()+r"__\3)", content)
+        eplaced_text = re.sub(pattern, lambda match: f"[{match.group(1)}]({re.escape(os.path.basename(main_name))}__{self.get_ok_name(match.group(3))})", content)
 
         for i in matches:
             source_file = i[1]
-            destination_file = self.output_folder2+"\\"+main_name+"__"+i[2]
+            destination_file = self.output_folder1+"\\"+main_name+"__"+i[2]
+            destination_file = self.get_ok_name(destination_file)
             print("替換",source_file,"->",destination_file)
-            shutil.copyfile(source_file, destination_file)
+            try:
+                directory = os.path.dirname(destination_file)
+                os.makedirs(directory, exist_ok=True)
+                shutil.copyfile(source_file, destination_file)
+            except:
+                print("複製",source_file,"到",destination_file,"失敗")
 
         print("successfully!")
         return eplaced_text
@@ -152,9 +166,10 @@ class push_md():
         if len(filtered_arr)>0:
             file1 = filtered_arr[0] 
             time = self.getTime(file1)
-            url+="/".join(time.split("-"))+"/"
+            # url+="/".join(time.split("-"))+"/"
             url += (file1[:-3]).replace("\\","/")
 
+        url = url.lower()
         if url == self.url:
             print("未找到文章!!!!!",file)
         else:
@@ -162,12 +177,10 @@ class push_md():
         return url
 
     def updata(self):
-        # 执行命令 hexo cl，在指定的文件夹中执行
-        # subprocess.run(["hexo", "cl"], cwd= self.output_folder0, shell=True, check=True)
-        # 执行命令 hexo g，在指定的文件夹中执行
-        # subprocess.run(["hexo", "g"], cwd= self.output_folder0, shell=True, check=True)
-        # 执行命令 hexo d，在指定的文件夹中执行
-        # subprocess.run(["hexo", "d"], cwd= self.output_folder0, shell=True, check=True)
+        # Commit changes with message "ddd"
+        subprocess.run(["git", "commit", "-a", "-m", "ddd"], cwd= self.output_folder0, shell=True, check=True)
+        # Push changes to the 'deploy' branch of the 'origin' remote
+        subprocess.run(["git", "push", "origin", "deploy"], cwd= self.output_folder0, shell=True, check=True)
         print("done!!!!!!!!!!")
 
     def delete_file(self):
@@ -186,7 +199,7 @@ class push_md():
 # 指定要遍歷的資料夾路徑
 input_folder_path = "D:\Document_J\iCloudDrive\iCloud~md~obsidian\jx\GithubPages"
 output_folder_path = "D:\Document_J\jx06_blog"
-url = "https://jx06t.github.io/"
+url = "https://jx06blog-jx06ts-projects.vercel.app/posts/"
 # output_folder_path = "D:\Document_J\hexo\source\_posts"
 if __name__ == "__main__":
     input_folder_paths = MYcurses2.get(input_folder_path)
@@ -205,3 +218,4 @@ if __name__ == "__main__":
             T+=1
     if T>0:
         mdPusher.updata()
+        pass
