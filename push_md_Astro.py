@@ -130,7 +130,7 @@ class push_md():
         pattern = r"!\[(.*)\]\((.*(?:C:|D:).*\\(.+\..+))\)"
         matches = re.findall(pattern, content)
         # eplaced_text = re.sub(pattern, r"![\1]("+self.get_ok_name()+r"__\3)", content)
-        eplaced_text = re.sub(pattern, lambda match: f"[{match.group(1)}]({re.escape(os.path.basename(main_name))}__{self.get_ok_name(match.group(3))})", content)
+        eplaced_text = re.sub(pattern, lambda match: f"![{match.group(1)}]({re.escape(os.path.basename(main_name))}__{self.get_ok_name(match.group(3))})", content)
 
         for i in matches:
             source_file = i[1]
