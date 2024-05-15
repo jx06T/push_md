@@ -185,7 +185,7 @@ class push_md():
 
 # 指定要遍歷的資料夾路徑
 input_folder_path = "D:\Document_J\Obsidian\my\GithubPages"
-output_folder_path = "D:\Document_J\hexo\\"
+output_folder_path = "D:\Document_J\hexo2\\"
 url = "https://jx06t.github.io/"
 # output_folder_path = "D:\Document_J\hexo\source\_posts"
 if __name__ == "__main__":
