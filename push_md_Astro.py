@@ -177,6 +177,7 @@ class push_md():
         return url
 
     def updata(self):
+        subprocess.run(["git", "add", "."], cwd= self.output_folder0, shell=True, check=True)
         # Commit changes with message "ddd"
         subprocess.run(["git", "commit", "-a", "-m", "ddd"], cwd= self.output_folder0, shell=True, check=True)
         # Push changes to the 'deploy' branch of the 'origin' remote
