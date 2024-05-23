@@ -177,11 +177,41 @@ class push_md():
         return url
 
     def updata(self):
-        subprocess.run(["git", "add", "."], cwd= self.output_folder0, shell=True, check=True)
-        # Commit changes with message "ddd"
-        subprocess.run(["git", "commit", "-a", "-m", "ddd"], cwd= self.output_folder0, shell=True, check=True)
-        # Push changes to the 'deploy' branch of the 'origin' remote
-        subprocess.run(["git", "push", "origin", "deploy"], cwd= self.output_folder0, shell=True, check=True)
+        try:
+            # 拉取遠程倉庫的最新更改
+            subprocess.run(["git", "pull", "origin", "deploy"], cwd=self.output_folder0, shell=True, check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"Error occurred during pull: {e}")
+            print(f"Output: {e.output}")
+            input("Press Enter to continue...")
+            # return  
+
+        try:
+            # 添加所有變更，包括未跟踪的文件
+            subprocess.run(["git", "add", "."], cwd=self.output_folder0, shell=True, check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"Error occurred during add: {e}")
+            print(f"Output: {e.output}")
+            input("Press Enter to continue...")
+            # return
+
+        try:
+            # 提交變更
+            subprocess.run(["git", "commit", "-a", "-m", "ddd"], cwd=self.output_folder0, shell=True, check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"Error occurred during commit: {e}")
+            print(f"Output: {e.output}")
+            input("Press Enter to continue...")
+            # return
+
+        try:
+            # 推送到遠程倉庫
+            subprocess.run(["git", "push", "origin", "deploy"], cwd=self.output_folder0, shell=True, check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"Error occurred during push: {e}")
+            print(f"Output: {e.output}")
+            input("Press Enter to continue...")
+            # return
         print("done!!!!!!!!!!")
 
     def delete_file(self):
