@@ -4,6 +4,7 @@ import re
 import shutil
 import subprocess
 import MYcurses2
+import signal
 
 class push_md():
     def __init__(self,input_folder_paths0,input_folder_paths,output_folder_path,url):
@@ -39,7 +40,7 @@ class push_md():
                     print("處理...",file_path)
                     with open(file_path, "r", encoding="utf-8") as f:
                         title = file.split("\\")[-1][:-3]
-                        Mtime = self.check_N_O(file.replace(" ","_"))
+                        Mtime = self.check_file_already_exists(file.replace(" ","_"))
                         tags,content = self.getTag(f)
                         categories = file.split("\\")[:-1]
                         if len(categories) == 0:
@@ -47,9 +48,10 @@ class push_md():
                         content = self.addtitle(content,title,Mtime,tags,categories)              
                         content = self.image_urls(content,file.replace(" ","_")[:-3],categories)
                         content = self.quote_urls(content)
+                        content = self.callout(content)
 
                         # print(content)
-                        output = self.output_folder1+"\\"+file.replace(" ","_")
+                        output = self.output_folder1+"\\"+self.get_okName_F(file.replace(" ","_"))
                         self.save_content_to_file(content,output)
 
     def getTag(self,file):
@@ -81,9 +83,9 @@ class push_md():
         except:
             return self.get_now_time() 
             
-    def check_N_O(self,file):
+    def check_file_already_exists(self,file):
         files = MYcurses2.getAll_file(self.output_folder1)
-        filtered_arr = [i for i in files if i == file]
+        filtered_arr = [i for i in files if i == self.get_okName_F(file)]
         # print(files,file,filtered_arr)
         if len(filtered_arr)>0:
             Mtime = self.getTime(filtered_arr[0])
@@ -118,24 +120,29 @@ class push_md():
         print("successfully!")
         return content_with_metadata
          
-    def get_ok_name(self,name):
-        special_chars = "()[]#!@$%^&*|{}?<>"
+    def get_okName(self,name):
+        special_chars = "()[]#!@$%^&*|{}?<>:\"\'\\/"
         pattern = "[" + re.escape("".join(special_chars)) + "]"
         name = re.sub(pattern, "", name)
         return name
 
-    
+    def get_okName_F(self,file_path):
+        folder_path, file_name = os.path.split(file_path)
+        new_file_name = self.get_okName(file_name)
+        new_file_path = os.path.join(folder_path, new_file_name)
+        return new_file_path
+
     def image_urls(self,content,main_name,file_path):
         print("檢查本地資源引用...")
         pattern = r"!\[(.*)\]\((.*(?:C:|D:).*\\(.+\..+))\)"
         matches = re.findall(pattern, content)
-        # eplaced_text = re.sub(pattern, r"![\1]("+self.get_ok_name()+r"__\3)", content)
-        eplaced_text = re.sub(pattern, lambda match: f"![{match.group(1)}]({re.escape(os.path.basename(main_name))}__{self.get_ok_name(match.group(3))})", content)
+        # eplaced_text = re.sub(pattern, r"![\1]("+self.get_okName()+r"__\3)", content)
+        eplaced_text = re.sub(pattern, lambda match: f"![{match.group(1)}]({re.escape(os.path.basename(main_name))}__{self.get_okName(match.group(3))})", content)
 
         for i in matches:
             source_file = i[1]
             destination_file = self.output_folder1+"\\"+main_name+"__"+i[2]
-            destination_file = self.get_ok_name(destination_file)
+            destination_file = self.get_okName(destination_file)
             print("替換",source_file,"->",destination_file)
             try:
                 directory = os.path.dirname(destination_file)
@@ -155,17 +162,15 @@ class push_md():
         replaced_text = re.sub(pattern, lambda match: f"[{match.group(1)}]("+self.get_quoteURL(match.group(1), allfiles)+r")", content)
         print("successfully!")
         return replaced_text
-
-        
         
     def get_quoteURL(self,file,files):
         file1 = file.replace(" ","_")
-        filtered_arr = [i for i in files if os.path.splitext(os.path.basename(i))[0] == file1]
+        filtered_arr = [i for i in files if os.path.splitext(os.path.basename(i))[0] == self.get_okName(file1)]
         
         url = self.url
         if len(filtered_arr)>0:
             file1 = filtered_arr[0] 
-            time = self.getTime(file1)
+            # time = self.getTime(file1)
             # url+="/".join(time.split("-"))+"/"
             url += (file1[:-3]).replace("\\","/")
 
@@ -176,6 +181,61 @@ class push_md():
             print("替換",file,"->",url)
         return url
 
+    def callout(self,content):
+        print("callout語法統一...")
+        pattern = r"\> \[\!(.+)\] (.*)"
+        matches = re.finditer(pattern, content)
+        ok = ["note","tip","important","warning","caution"]
+        new_text = content
+        # 打印匹配的文字和它們的索引位置
+        for match in matches:
+            start_index = match.start()
+            # end_index = match.end()
+            matched_text = match.group(1).lower()
+            title = match.group(2)
+            if matched_text not in ok:
+                continue
+            # print(f"Matched text: {matched_text}, Start index: {start_index}, End index: {end_index}")
+            print(f"There is a \"{matched_text}\" ,Start at {start_index}")
+            temp_text0 = content[start_index:]
+            end_index = temp_text0.find("\n\n")
+            temp_text0 = temp_text0[:end_index]
+
+            temp_text = temp_text0.replace("\n> ","<br>\n")
+            temp_text = temp_text.replace("\n>","<br>\n")
+            temp_text = temp_text[temp_text0.find("\n")+4:]
+            temp_text = ":::"+matched_text+"["+title+"]"+temp_text+"\n:::"
+            # print(temp_text0)
+            # print("--------------------------------------")
+            # print(temp_text)
+            # print("-------------------------------------------------------")
+            new_text = new_text.replace(temp_text0,temp_text)
+        # print(new_text)
+        return new_text
+    def preview(self):
+        try:
+            # 使用 Popen 启动子进程
+            self.process = subprocess.Popen(
+                ["npm", "start"], 
+                cwd=self.output_folder0, 
+                shell=True
+            )
+            print("Preview started. Press Ctrl+C to stop.")
+            self.process.wait()  # 等待子进程完成
+        except subprocess.CalledProcessError as e:
+            print(f"Error occurred during pull: {e}")
+            print(f"Output: {e.output}")
+            input("Press Enter to continue...")
+        except KeyboardInterrupt:
+            print("Stopping preview...")
+            self.stop_preview()
+
+    def stop_preview(self):
+            if self.process and self.process.poll() is None:  # 检查子进程是否仍在运行
+                self.process.send_signal(signal.SIGINT)  # 发送中断信号
+                self.process.wait()  # 等待子进程退出
+                print("Preview stopped.")
+
     def updata(self):
         try:
             # 拉取遠程倉庫的最新更改
@@ -185,7 +245,6 @@ class push_md():
             print(f"Output: {e.output}")
             input("Press Enter to continue...")
             # return  
-
         try:
             # 添加所有變更，包括未跟踪的文件
             subprocess.run(["git", "add", "."], cwd=self.output_folder0, shell=True, check=True)
@@ -194,7 +253,6 @@ class push_md():
             print(f"Output: {e.output}")
             input("Press Enter to continue...")
             # return
-
         try:
             # 提交變更
             subprocess.run(["git", "commit", "-a", "-m", "ddd"], cwd=self.output_folder0, shell=True, check=True)
@@ -203,7 +261,6 @@ class push_md():
             print(f"Output: {e.output}")
             input("Press Enter to continue...")
             # return
-
         try:
             # 推送到遠程倉庫
             subprocess.run(["git", "push", "origin", "deploy"], cwd=self.output_folder0, shell=True, check=True)
@@ -224,7 +281,6 @@ class push_md():
                     if not a == "Y":
                         continue
                     os.remove(file_path)
-                    
         # self.updata()
 
 # 指定要遍歷的資料夾路徑
@@ -242,11 +298,16 @@ if __name__ == "__main__":
         
     a = input("要刪啥嗎?(Y/N)")
     if a == "Y":
-        delete_folder_paths = MYcurses2.get(output_folder_path+"source\\_posts",1)
+        delete_folder_paths = MYcurses2.get(output_folder_path+"\src\content\posts",1)
         if  len(delete_folder_paths) > 0:
             mdPusher = push_md(input_folder_path,delete_folder_paths,output_folder_path,url)
             mdPusher.delete_file()
             T+=1
     if T>0:
-        mdPusher.updata()
-        pass
+        a = input("要預覽嗎?(Y/N)")
+        if a == "Y":
+            mdPusher.preview()
+
+        a = input("要取消提交到github嗎?(Y/N)")
+        if not a == "Y":
+            mdPusher.updata()
