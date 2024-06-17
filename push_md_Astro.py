@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import MYcurses2
 import signal
+import api as imgurAPI
 
 class push_md():
     def __init__(self,input_folder_paths0,input_folder_paths,output_folder_path,url):
@@ -135,21 +136,9 @@ class push_md():
     def image_urls(self,content,main_name,file_path):
         print("檢查本地資源引用...")
         pattern = r"!\[(.*)\]\((.*(?:C:|D:).*\\(.+\..+))\)"
-        matches = re.findall(pattern, content)
-        # eplaced_text = re.sub(pattern, r"![\1]("+self.get_okName()+r"__\3)", content)
-        eplaced_text = re.sub(pattern, lambda match: f"![{match.group(1)}]({re.escape(os.path.basename(main_name))}__{self.get_okName(match.group(3))})", content)
-
-        for i in matches:
-            source_file = i[1]
-            destination_file = self.output_folder1+"\\"+main_name+"__"+i[2]
-            destination_file = self.get_okName(destination_file)
-            print("替換",source_file,"->",destination_file)
-            try:
-                directory = os.path.dirname(destination_file)
-                os.makedirs(directory, exist_ok=True)
-                shutil.copyfile(source_file, destination_file)
-            except:
-                print("複製",source_file,"到",destination_file,"失敗")
+        
+        # eplaced_text = re.sub(pattern, lambda match: f"![{match.group(1)}]({re.escape(os.path.basename(main_name))}__{self.get_okName(match.group(3))})", content)
+        eplaced_text = re.sub(pattern, lambda match: f"![{match.group(1)}]({imgurAPI.post_image(match.group(2),match.group(1))})", content)
 
         print("successfully!")
         return eplaced_text
@@ -277,7 +266,7 @@ class push_md():
             file_path = os.path.join(self.output_folder1, file)
             if os.path.exists(file_path):
                 if file.endswith(".md"):
-                    a = input(f"刪除{file_path}?(Y/N)")
+                    a = input(f"刪除{file_path}?(Y/[N])")
                     if not a == "Y":
                         continue
                     os.remove(file_path)
@@ -296,7 +285,7 @@ if __name__ == "__main__":
         mdPusher.read_md_files()
         T+=1
         
-    a = input("要刪啥嗎?(Y/N)")
+    a = input("要刪啥嗎?(Y/[N])")
     if a == "Y":
         delete_folder_paths = MYcurses2.get(output_folder_path+"\src\content\posts",1)
         if  len(delete_folder_paths) > 0:
@@ -304,10 +293,10 @@ if __name__ == "__main__":
             mdPusher.delete_file()
             T+=1
     if T>0:
-        a = input("要預覽嗎?(Y/N)")
+        a = input("要預覽嗎?(Y/[N])")
         if a == "Y":
             mdPusher.preview()
 
-        a = input("要取消提交到github嗎?(Y/N)")
+        a = input("要取消提交到github嗎?(Y/[N])")
         if not a == "Y":
             mdPusher.updata()
